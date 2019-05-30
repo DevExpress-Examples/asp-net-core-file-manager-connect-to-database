@@ -1,0 +1,26 @@
+﻿@{
+    ViewData["Title"] = "How to connect File Manager to a database";
+}
+<script>
+    $(function () {
+        $("#file-manager").dxFileManager({
+            name: "fileManager",
+            fileProvider: new DevExpress.FileProviders.WebApi({
+                endpointUrl: '@Url.RouteUrl("Default", new { controller = "api/DataBaseApi" })'
+            }),
+            height: 450,
+            permissions: {
+                create: true,
+                copy: true,
+                move: true,
+                remove: true,
+                rename: true,
+                upload: true
+            }
+        });
+    });
+</script>
+<h1>How to connect File Manager to a database</h1>
+<div class="container">
+    <div id="file-manager"/>
+</div>
