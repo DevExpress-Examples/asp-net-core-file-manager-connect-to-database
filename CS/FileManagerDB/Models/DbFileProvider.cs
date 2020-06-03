@@ -1,165 +1,248 @@
 ﻿using DevExtreme.AspNet.Mvc.FileManagement;
+using DevExtreme.AspNet.Mvc.FileManagement.Internals;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Caching.Memory;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Security;
+using System.Threading.Tasks;
 
 namespace FileManagerDB.Models {
-    public class DbFileProvider : IFileProvider {
-        const int DbRootItemId = -1;
-        static readonly char[] PossibleDirectorySeparators = { '\\', '/' };
-        ArtsDBContext DataContext { get; }
-        public DbFileProvider(ArtsDBContext _context) {
-            DataContext = _context;
+    public class DbFileProvider : IFileSystemItemLoader, IFileSystemItemEditor {
+        const int GuestPersonId = 1;
+
+        public DbFileProvider(FileManagementDbContext fileManagementDbContext) {
+            FileManagementDbContext = fileManagementDbContext;
         }
-        public void Copy(string sourceKey, string destinationKey) {
-            Arts sourceItem = GetDbItemByFileKey(sourceKey);
-            Arts targetItem = GetDbItemByFileKey(Path.GetDirectoryName(destinationKey));
-            if (targetItem.Id == sourceItem.ParentId)
-                throw new SecurityException("You can't copy to the same folder.");
-            List<Arts> childItems = DataContext.Arts.Where(p => p.ParentId == targetItem.Id).ToList();
-            if (childItems.Select(i => i.Name).Contains(sourceItem.Name))
-                throw new SecurityException("The folder contains an item with the same name.");
-            CopyFolderInternal(sourceItem, targetItem);
+
+        //public DbFileProvider(FileManagementDbContext fileManagementDbContext, IHttpContextAccessor contextAccessor, IMemoryCache memoryCache) {
+        //    FileManagementDbContext = new InMemoryFileManagementDataContext(fileManagementDbContext, contextAccessor, memoryCache);
+        //}
+
+        FileManagementDbContext FileManagementDbContext { get; set; }
+
+        public IEnumerable<FileSystemItem> GetItems(FileSystemLoadItemOptions options) {
+            int parentId = ParseKey(options.Directory.Key);
+            var fileItems = GetDirectoryContents(parentId);
+
+            var clientItemList = new List<FileSystemItem>();
+            foreach (var item in fileItems) {
+                var clientItem = new FileSystemItem {
+                    Key = item.Id.ToString(),
+                    Name = item.Name,
+                    IsDirectory = item.IsDirectory,
+                    DateModified = item.Modified
+                };
+
+                if (item.IsDirectory) {
+                    clientItem.HasSubDirectories = FileManagementDbContext.FileItems.Where(i => i.ParentId == item.Id && i.IsDirectory).Any();
+                }
+
+                clientItem.CustomFields["modifiedBy"] = item.ModifiedBy != null ? item.ModifiedBy.FullName : "";
+                clientItem.CustomFields["created"] = item.Created;
+                clientItemList.Add(clientItem);
+            }
+            return clientItemList;
         }
-        void CopyFolderInternal(Arts sourceItem, Arts targetFolder) {
-            if (!(bool)sourceItem.IsFolder)
-                copy(sourceItem, targetFolder);
-            else {
-                List<Arts> childItems = DataContext.Arts.Where(p => p.ParentId == sourceItem.Id).ToList();
-                var newFolder = copy(sourceItem, targetFolder);
-                foreach (Arts item in childItems)
-                    CopyFolderInternal(item, newFolder);
+
+        public void CreateDirectory(FileSystemCreateDirectoryOptions options) {
+            var parentDirectory = options.ParentDirectory;
+            if (!IsFileItemExists(parentDirectory))
+                ThrowItemNotFoundException(parentDirectory);
+
+            var directory = new FileItem {
+                Name = options.DirectoryName,
+                Modified = DateTime.Now,
+                Created = DateTime.Now,
+                IsDirectory = true,
+                ParentId = ParseKey(parentDirectory.Key),
+                ModifiedById = GuestPersonId
+            };
+            FileManagementDbContext.FileItems.Add(directory);
+            FileManagementDbContext.SaveChanges();
+        }
+
+        public void RenameItem(FileSystemRenameItemOptions options) {
+            var item = options.Item;
+
+            if (!IsFileItemExists(item))
+                ThrowItemNotFoundException(item);
+
+            var fileItem = GetFileItem(item);
+            fileItem.Name = options.ItemNewName;
+            fileItem.ModifiedById = GuestPersonId;
+            fileItem.Modified = DateTime.Now;
+            FileManagementDbContext.SaveChanges();
+        }
+
+        public void MoveItem(FileSystemMoveItemOptions options) {
+            var item = options.Item;
+            var destinationDirectory = options.DestinationDirectory;
+
+            if (!IsFileItemExists(item))
+                ThrowItemNotFoundException(item);
+            if (!IsFileItemExists(destinationDirectory))
+                ThrowItemNotFoundException(destinationDirectory);
+            if (!AllowCopyOrMove(item, destinationDirectory))
+                ThrowNoAccessException();
+
+            var fileItem = GetFileItem(item);
+            fileItem.ParentId = ParseKey(destinationDirectory.Key);
+            fileItem.Modified = DateTime.Now;
+            fileItem.ModifiedById = GuestPersonId;
+            FileManagementDbContext.SaveChanges();
+        }
+
+        public void CopyItem(FileSystemCopyItemOptions options) {
+            var item = options.Item;
+            var destinationDirectory = options.DestinationDirectory;
+
+            if (!IsFileItemExists(item))
+                ThrowItemNotFoundException(item);
+            if (!IsFileItemExists(destinationDirectory))
+                ThrowItemNotFoundException(destinationDirectory);
+            if (!AllowCopyOrMove(item, destinationDirectory))
+                ThrowNoAccessException();
+
+            var sourceFileItem = GetFileItem(item);
+            var copyFileItem = CreateCopy(sourceFileItem);
+            copyFileItem.ParentId = ParseKey(destinationDirectory.Key);
+            copyFileItem.Name = GenerateCopiedFileItemName(copyFileItem.ParentId, copyFileItem.Name, copyFileItem.IsDirectory);
+            FileManagementDbContext.FileItems.Add(copyFileItem);
+
+            if (copyFileItem.IsDirectory)
+                CopyDirectoryContentRecursive(sourceFileItem, copyFileItem);
+            FileManagementDbContext.SaveChanges();
+        }
+
+        void CopyDirectoryContentRecursive(FileItem sourcePathInfo, FileItem destinationPathInfo) {
+            foreach (var fileItem in GetDirectoryContents(sourcePathInfo.Id)) {
+                var copyItem = CreateCopy(fileItem);
+                copyItem.Parent = destinationPathInfo;
+                FileManagementDbContext.FileItems.Add(copyItem);
+                if (fileItem.IsDirectory)
+                    CopyDirectoryContentRecursive(fileItem, copyItem);
             }
         }
-        Arts copy(Arts sourceItem, Arts targetItem) {
-            Arts copyItem = new Arts {
-                Data = sourceItem.Data,
-                LastWriteTime = DateTime.Now,
-                IsFolder = sourceItem.IsFolder,
-                Name = sourceItem.Name,
-                ParentId = targetItem.Id
-            };
-            DataContext.Arts.Add(copyItem);
-            DataContext.SaveChanges();
-            return copyItem;
-        }
-        public void CreateDirectory(string rootKey, string name) {
-            Arts parentItem = GetDbItemByFileKey(rootKey);
-            Arts newFolderItem = new Arts {
-                Name = name,
-                ParentId = parentItem.Id,
-                IsFolder = true,
-                LastWriteTime = DateTime.Now
-            };
-            DataContext.Arts.Add(newFolderItem);
-            DataContext.SaveChanges();
+
+        public void DeleteItem(FileSystemDeleteItemOptions options) {
+            var item = options.Item;
+
+            if (!IsFileItemExists(item))
+                ThrowItemNotFoundException(item);
+
+            var fileItem = GetFileItem(item);
+            FileManagementDbContext.FileItems.Remove(fileItem);
+
+            if (fileItem.IsDirectory)
+                RemoveDirectoryContentRecursive(fileItem.Id);
+
+            FileManagementDbContext.SaveChanges();
         }
 
-        public IList<IClientFileSystemItem> GetDirectoryContents(string dirKey) {
-            List<IClientFileSystemItem> dirClientFileSystemItems = new List<IClientFileSystemItem>();
-            Arts parent = GetDbItemByFileKey(dirKey);
-            return DataContext.Arts
-                .Where(p => p.ParentId == parent.Id)
-                .Select(CreateDbFileSystemItem)
-                .ToList<IClientFileSystemItem>();
-        }
-
-        public void Move(string sourceKey, string destinationKey) {
-            Arts sourceItem = GetDbItemByFileKey(sourceKey);
-            Arts targetItem = GetDbItemByFileKey(Path.GetDirectoryName(destinationKey));
-            if (targetItem.Id == sourceItem.ParentId)
-                throw new SecurityException("You can't copy to the same folder.");
-            List<Arts> childItems = DataContext.Arts.Where(p => p.ParentId == targetItem.Id).ToList();
-            if (childItems.Select(i => i.Name).Contains(sourceItem.Name))
-                throw new SecurityException("The folder contains an item with the same name.");
-            sourceItem.ParentId = targetItem.Id;
-            DataContext.SaveChanges();
-        }
-
-        public void MoveUploadedFile(FileInfo file, string destinationKey) {
-            string itemName = Path.GetFileName(destinationKey);
-            byte[] data = new byte[file.Length];
-            using (FileStream fs = file.OpenRead()) {
-                fs.Read(data, 0, data.Length);
+        void RemoveDirectoryContentRecursive(int parenDirectoryKey) {
+            var itemsToRemove = FileManagementDbContext
+                .FileItems
+                .Where(item => item.ParentId == parenDirectoryKey)
+                .Select(item => new FileItem {
+                    Id = item.Id,
+                    IsDirectory = item.IsDirectory
+                });
+            foreach (var item in itemsToRemove) {
+                FileManagementDbContext.FileItems.Remove(item);
             }
-            file.Delete();
-            Arts parentItem = GetDbItemByFileKey(Path.GetDirectoryName(destinationKey));
-            Arts item = new Arts {
-                Name = itemName,
-                ParentId = parentItem.Id,
-                Data = data,
-                IsFolder = false,
-                LastWriteTime = DateTime.Now
-            };
-            DataContext.Arts.Add(item);
-            DataContext.SaveChanges();
-        }
 
-        public void Remove(string key) {
-            Arts item = GetDbItemByFileKey(key);
-            if (item.Id == DbRootItemId)
-                throw new SecurityException("You can't delete the root folder.");
-            RemoveInternal(item);
-        }
+            foreach (var item in itemsToRemove) {
+                if (!item.IsDirectory) continue;
 
-        void RemoveInternal(Arts sourceItem) {
-            if (!(bool)sourceItem.IsFolder) {
-                remove(sourceItem);
-            } else {
-                List<Arts> childItems = DataContext.Arts.Where(p => p.ParentId == sourceItem.Id).ToList();
-                remove(sourceItem);
-                foreach (Arts item in childItems) 
-                    RemoveInternal(item);
+                RemoveDirectoryContentRecursive(item.Id);
             }
         }
-        void remove(Arts item) {
-            DataContext.Arts.Remove(item);
-            DataContext.SaveChanges();
+
+        IEnumerable<FileItem> GetDirectoryContents(int parentKey) {
+            return FileManagementDbContext.FileItems
+                .OrderByDescending(item => item.IsDirectory)
+                .ThenBy(item => item.Name)
+                .Where(items => items.ParentId == parentKey);
         }
 
-        public void RemoveUploadedFile(FileInfo file) {
-            file.Delete();
+        FileItem GetFileItem(FileSystemItemInfo item) {
+            var itemId = ParseKey(item.Key);
+            return FileManagementDbContext.FileItems.FirstOrDefault(i => i.Id == itemId);
         }
 
-        public void Rename(string key, string newName) {
-            Arts item = GetDbItemByFileKey(key);
-            if (item.ParentId == DbRootItemId)
-                throw new SecurityException("You can't rename the root folder.");
-            DataContext.Arts.Find(item.Id).Name = newName;
-            DataContext.SaveChanges();
-        }
+        bool IsFileItemExists(FileSystemItemInfo itemInfo) {
+            var pathKeys = itemInfo.PathKeys.Select(key => ParseKey(key)).ToArray();
+            var foundEntries = FileManagementDbContext.FileItems
+                .Where(item => pathKeys.Contains(item.Id))
+                .Select(item => new { item.Id, item.ParentId, item.Name, item.IsDirectory });
 
-        Arts GetDbItemByFileKey(string fileKey) {
-            if (string.IsNullOrEmpty(fileKey) || fileKey == "\\")
-                return DataContext.Arts.Where(p => p.ParentId == DbRootItemId).FirstOrDefault();
-            string[] pathParts = fileKey.Split(PossibleDirectorySeparators);
-            var query = DataContext.Arts.Where(item => (bool)item.IsFolder && item.Name == pathParts.First());
-            var childItemsQuery = DataContext.Arts.Where(item => item.ParentId != null);
-            for (int i = 1; i < pathParts.Length; i++) {
-                string itemName = pathParts[i];
-                query = childItemsQuery.
-                 Join(query,
-                  childItem => childItem.ParentId,
-                  parentItem => parentItem.Id,
-                  (childItem, parentItem) => childItem).
-                 Where(item => item.Name == itemName);
+            var pathNames = itemInfo.Path.Split(new[] { Path.DirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
+
+            var isDirectoryExists = true;
+            for (var i = 0; i < pathKeys.Length && isDirectoryExists; i++) {
+                var entry = foundEntries.FirstOrDefault(e => e.Id == pathKeys[i]);
+                isDirectoryExists = entry != null && entry.Name == pathNames[i] &&
+                                    (i == 0 && entry.ParentId == 0 || entry.ParentId == pathKeys[i - 1]);
+                if (isDirectoryExists && i < pathKeys.Length - 1)
+                    isDirectoryExists = entry.IsDirectory;
             }
-            return query.FirstOrDefault();
-
+            return isDirectoryExists;
         }
-        DbFileSystemItem CreateDbFileSystemItem(Arts dbItem) {
-            return new DbFileSystemItem {
-                Id = dbItem.Id.ToString(),
-                ParentId = dbItem.ParentId == null ? DbRootItemId : (int)dbItem.ParentId,
-                Name = dbItem.Name,
-                DateModified = (DateTime)dbItem.LastWriteTime,
-                IsDirectory = (bool)dbItem.IsFolder,
-                FileData = dbItem.Data,
-                Size = dbItem.Data == null ? 0 : dbItem.Data.Length,
-                HasSubDirectories = DataContext.Arts.Where(i => i.ParentId == dbItem.Id && i.IsFolder == true).Count() > 0
+
+        static bool AllowCopyOrMove(FileSystemItemInfo item, FileSystemItemInfo destinationDirectory) {
+            if (destinationDirectory.PathKeys.Length < item.PathKeys.Length)
+                return true;
+
+            var isValid = false;
+            for (var i = 0; i < destinationDirectory.PathKeys.Length && !isValid; i++) {
+                isValid = destinationDirectory.PathKeys[i] != item.PathKeys[i];
+            }
+            return isValid;
+        }
+
+        static FileItem CreateCopy(FileItem fileItem) {
+            return new FileItem {
+                Name = fileItem.Name,
+                Created = DateTime.Now,
+                Modified = DateTime.Now,
+                IsDirectory = fileItem.IsDirectory,
+                ModifiedById = GuestPersonId
             };
+        }
+
+        static int ParseKey(string key) {
+            return string.IsNullOrEmpty(key) ? 0 : int.Parse(key);
+        }
+
+        string GenerateCopiedFileItemName(int parentDirKey, string copiedFileItemName, bool isDirectory) {
+            var dirNames = GetDirectoryContents(parentDirKey)
+                .Where(i => i.IsDirectory == isDirectory)
+                .Select(i => i.Name);
+
+            string newName;
+            var fileExtension = isDirectory ? "" : Path.GetExtension(copiedFileItemName);
+            var copyNamePrefix =
+                isDirectory ? copiedFileItemName : Path.GetFileNameWithoutExtension(copiedFileItemName);
+            var index = -1;
+            do {
+                newName = $"{copyNamePrefix} {(index < 1 ? "" : $"copy {index}")}{fileExtension}";
+                index++;
+            } while (dirNames.Contains(newName));
+            return newName;
+        }
+
+        void ThrowItemNotFoundException(FileSystemItemInfo item) {
+            var itemType = item.IsDirectory ? "Directory" : "File";
+            var errorCode = item.IsDirectory ? FileSystemErrorCode.DirectoryNotFound : FileSystemErrorCode.FileNotFound;
+            string message = $"{itemType} '{item.Path}' not found.";
+            throw new FileSystemException(errorCode, message);
+        }
+
+        void ThrowNoAccessException() {
+            string message = "Access denied. The operation cannot be completed.";
+            throw new FileSystemException(FileSystemErrorCode.NoAccess, message);
         }
     }
 }
