@@ -1,8 +1,8 @@
-# File Manager - How to connect to a database
+# File Manager - How to connect to a database
 
 This examples shows how to get data from a database in the File Manager or implement custom processing logic. To implement server-side interaction with a file system, pass a class that uses [file management interfaces](https://docs.devexpress.com/AspNetCore/401686/devextreme-based-controls/concepts/file-management#file-system-provider) to the [FileSystemProvider](https://docs.devexpress.com/AspNetCore/DevExtreme.AspNet.Mvc.FileManagement.FileSystemConfiguration.FileSystemProvider) property. 
 
-### Follow these steps:
+### Follow these steps:
 1. Add the FileManager to your page and setup it on the client side.
 2. Set the [fileProvider.endpointUrl](https://js.devexpress.com/DevExtreme/ApiReference/UI_Widgets/dxFileManager/Configuration/#fileProvider) option so that it points to your API controller:
  
