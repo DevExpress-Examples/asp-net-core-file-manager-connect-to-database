@@ -1,4 +1,4 @@
-# File Manager - How to connect to a database using IFIleSystemProvider
+# File Manager - How to connect to a database
 
 This examples shows how to get data from a database in the File Manager or implement custom processing logic. To implement server-side interaction with a file system, pass a class that uses [file management interfaces](https://docs.devexpress.com/AspNetCore/401686/devextreme-based-controls/concepts/file-management#file-system-provider) to the [FileSystemProvider](https://docs.devexpress.com/AspNetCore/DevExtreme.AspNet.Mvc.FileManagement.FileSystemConfiguration.FileSystemProvider) property. 
 
