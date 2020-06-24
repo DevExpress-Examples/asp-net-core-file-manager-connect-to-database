@@ -4,7 +4,7 @@ This examples shows how to get data from a database in the File Man
 
 ### Follow these steps:
 1. Add the FileManager to your page and setup it on the client side.
-2. Set the [fileProvider.endpointUrl](https://js.devexpress.com/DevExtreme/ApiReference/UI_Widgets/dxFileManager/Configuration/#fileProvider) option so that it points to your API controller:
+2. Set the Url option so that it points to your API controller:
  
 
 ```cs 
