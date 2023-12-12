@@ -4,7 +4,7 @@
 <!-- default badges end -->
 # File Manager for ASP.NET Core - How to connect control to a database
 
-This examples demonstrates how to get data from a database and display it in the [File Manager](https://docs.devexpress.com/AspNetCore/401320/devextreme-based-controls/controls/file-manager) or implement custom processing logic. To implement server interaction with a file system, pass a class that uses [file management interfaces](https://docs.devexpress.com/AspNetCore/401686/devextreme-based-controls/concepts/file-management#file-system-provider) to the [FileSystemProvider](https://docs.devexpress.com/AspNetCore/DevExtreme.AspNet.Mvc.FileManagement.FileSystemConfiguration.FileSystemProvider) property.
+This examples demonstrates how to get data from a database and display it in the [File Manager](https://docs.devexpress.com/AspNetCore/401320/devextreme-based-controls/controls/file-manager) or implement custom processing logic. To implement server interaction with a file system, pass a class that uses [file management interfaces](https://docs.devexpress.com/AspNetCore/401686/devextreme-based-controls/concepts/file-management#file-system-provider) to the [FileSystemProvider](https://docs.devexpress.com/AspNetCore/DevExtreme.AspNet.Mvc.FileManagement.FileSystemConfiguration.FileSystemProvider) property.
 
 ## Implementation Details
 
