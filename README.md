@@ -52,3 +52,9 @@ public IActionResult Process(FileSystemCommand command, string arguments) 
     return Ok(result.GetClientCommandResult());
 }
 ```
+
+## Files to Review
+
+* [Index.cshtml](./CS/FileManagerDB/Views/Home/Index.cshtml)
+* [DbFileProvider.cs](./CS/FileManagerDB/Models/DbFileProvider.cs)
+* [FileManagerApiController.cs](./CS/FileManagerDB/Controllers/FileManagerApiController.cs)
