@@ -23,7 +23,8 @@ This examples demonstrates how to get data from a database and display 
 
 4. Implement required file management interfaces.
 * If you want only to display files and folders, implement [IFileSystemItemLoade](https://docs.devexpress.com/AspNetCore/DevExtreme.AspNet.Mvc.FileManagement.IFileSystemItemLoader). 
-* If you want to copy, move, delete items - implement [IFileSystemItemEditor](https://docs.devexpress.com/AspNetCore/DevExtreme.AspNet.Mvc.FileManagement.IFileSystemItemEditor). 
+* If you want to copy, move, delete items - implement [IFileSystemItemEditor](https://docs.devexpress.com/AspNetCore/DevExtreme.AspNet.Mvc.FileManagement.IFileSystemItemEditor).
+
 You can find a full implementation example in the [DbFileProvider.cs](CS/FileManagerDB/Models/DbFileProvider.cs) file.
 
 5. Create a method in your [API Controller](CS/FileManagerDB/Controllers/FileManagerApiController.cs), which will handle File Manager operations. Use your custom provider there.
