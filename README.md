@@ -4,7 +4,7 @@
 <!-- default badges end -->
 # File Manager for ASP.NET Core - How to connect control to a database
 
-This examples demonstrates how to get data from a database and display it in the [File Manager](https://docs.devexpress.com/AspNetCore/401320/devextreme-based-controls/controls/file-manager) or implement custom processing logic. To implement server interaction with a file system, pass a class that uses [file management interfaces](https://docs.devexpress.com/AspNetCore/401686/devextreme-based-controls/concepts/file-management#file-system-provider) to the [FileSystemProvider](https://docs.devexpress.com/AspNetCore/DevExtreme.AspNet.Mvc.FileManagement.FileSystemConfiguration.FileSystemProvider) property.
+This example demonstrates how to get data from a database and display it in the [File Manager](https://docs.devexpress.com/AspNetCore/401320/devextreme-based-controls/controls/file-manager) or implement custom processing logic. To implement server interaction with a file system, pass a class that uses [file management interfaces](https://docs.devexpress.com/AspNetCore/401686/devextreme-based-controls/concepts/file-management#file-system-provider) to the [FileSystemProvider](https://docs.devexpress.com/AspNetCore/DevExtreme.AspNet.Mvc.FileManagement.FileSystemConfiguration.FileSystemProvider) property.
 
 ## Implementation Details
 
@@ -22,12 +22,12 @@ This examples demonstrates how to get data from a database and display it in the
 3. Specify File Manager [Permissions](https://docs.devexpress.com/AspNetCore/DevExtreme.AspNet.Mvc.Builders.FileManagerBuilder.Permissions(System.Action-DevExtreme.AspNet.Mvc.Builders.FileManagerPermissionsBuilder-)?p=netframework) according to your requirements.
 
 4. Implement required file management interfaces.
-* If you want only to display files and folders, implement [IFileSystemItemLoade](https://docs.devexpress.com/AspNetCore/DevExtreme.AspNet.Mvc.FileManagement.IFileSystemItemLoader). 
-* If you want to copy, move, delete items - implement [IFileSystemItemEditor](https://docs.devexpress.com/AspNetCore/DevExtreme.AspNet.Mvc.FileManagement.IFileSystemItemEditor).
+* If you want only to display files and folders, implement [IFileSystemItemLoader](https://docs.devexpress.com/AspNetCore/DevExtreme.AspNet.Mvc.FileManagement.IFileSystemItemLoader).
+* If you want to copy, move, and delete items - implement [IFileSystemItemEditor](https://docs.devexpress.com/AspNetCore/DevExtreme.AspNet.Mvc.FileManagement.IFileSystemItemEditor).
 
 You can find a full implementation example in the [DbFileProvider.cs](CS/FileManagerDB/Models/DbFileProvider.cs) file.
 
-5. Create a method in your [API Controller](CS/FileManagerDB/Controllers/FileManagerApiController.cs), which will handle File Manager operations. Use your custom provider there.
+5. Create a method in your [API Controller](CS/FileManagerDB/Controllers/FileManagerApiController.cs) that will handle File Manager operations. Use your custom provider there.
 
 ```cs
 public FileManagerApiController(DbFileProvider dbFileProvider) {
