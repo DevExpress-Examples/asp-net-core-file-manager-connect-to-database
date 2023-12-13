@@ -8,7 +8,7 @@ This example demonstrates how to get data from a database and display it in the 
 
 ## Implementation Details
 
-1. Add the [FileManager](https://docs.devexpress.com/AspNetCore/401320/devextreme-based-controls/controls/file-manager) control to your page and setup it on the client side.
+1. Add the [FileManager](https://docs.devexpress.com/AspNetCore/401320/devextreme-based-controls/controls/file-manager) control to your page and configure it according to your requirements.
 2. Set the `Url` option so that it points to your API controller.
 
 ```cs 
