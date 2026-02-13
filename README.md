@@ -61,7 +61,7 @@ public IActionResult Process(FileSystemCommand command, string arguments) 
 * [DbFileProvider.cs](./CS/FileManagerDB/Models/DbFileProvider.cs)
 * [FileManagerApiController.cs](./CS/FileManagerDB/Controllers/FileManagerApiController.cs)
 <!-- feedback -->
-## Does this example address your development requirements/objectives?
+## Does This Example Address Your Development Requirements/Objectives?
 
 [<img src="https://www.devexpress.com/support/examples/i/yes-button.svg"/>](https://www.devexpress.com/support/examples/survey.xml?utm_source=github&utm_campaign=asp-net-core-file-manager-connect-to-database&~~~was_helpful=yes) [<img src="https://www.devexpress.com/support/examples/i/no-button.svg"/>](https://www.devexpress.com/support/examples/survey.xml?utm_source=github&utm_campaign=asp-net-core-file-manager-connect-to-database&~~~was_helpful=no)
 
